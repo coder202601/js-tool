@@ -3,6 +3,8 @@
  * 修复所有问题 + 更新域名
  */
 
+const { chromium } = require('playwright');
+
 class FacebookURLGenerator {
     /**
      * 生成真正随机的 18 位 Facebook 广告 ID
@@ -150,7 +152,7 @@ class FacebookURLGenerator {
     validateURL(url) {
       const parsed = this.parseURL(url);
       if (!parsed) return { valid: false, errors: ['无法解析URL'] };
-  
+
       const errors = [];
       
       // 检查必需参数
@@ -169,17 +171,59 @@ class FacebookURLGenerator {
       
       // 检查逻辑一致性
       if (!parsed.validation.campaignMatchesId) errors.push('utm_campaign 和 utm_id 不一致');
-  
+
       return {
         valid: errors.length === 0,
         errors,
         details: parsed
       };
     }
+
+    /**
+     * 使用 Playwright 打开浏览器并访问URL
+     * 设置 referer 为 http://m.facebook.com
+     */
+    async openWithBrowser(url, options = {}) {
+      const {
+        headless = false,  // 默认显示浏览器
+        referer = 'http://m.facebook.com',
+        waitTime = 5000  // 默认等待5秒
+      } = options;
+
+      console.log('\n正在启动浏览器...');
+      const browser = await chromium.launch({ headless });
+      const context = await browser.newContext({
+        // 设置额外的上下文选项
+        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'
+      });
+      const page = await context.newPage();
+
+      try {
+        console.log(`正在访问: ${url}`);
+        console.log(`Referer: ${referer}`);
+        
+        // 使用 goto 访问页面，设置 referer 头
+        await page.goto(url, {
+          referer: referer,
+          waitUntil: 'networkidle'
+        });
+
+        console.log(`\n页面已打开，等待 ${waitTime/1000} 秒...`);
+        await page.waitForTimeout(waitTime);
+
+        console.log('访问完成！');
+      } catch (error) {
+        console.error('访问页面时出错:', error.message);
+      } finally {
+        await browser.close();
+        console.log('浏览器已关闭\n');
+      }
+    }
   }
   
-  // ============= 使用示例 =============
-  
+// ============= 使用示例 =============
+
+async function main() {
   const generator = new FacebookURLGenerator();
   
   console.log('='.repeat(100));
@@ -210,6 +254,19 @@ class FacebookURLGenerator {
   if (validation.errors.length > 0) {
     console.log(`  错误: ${validation.errors.join(', ')}`);
   }
+
+  // 使用 Playwright 打开浏览器访问生成的URL
+  console.log('\n' + '='.repeat(100));
+  console.log('\n【使用 Playwright 打开浏览器】\n');
+  await generator.openWithBrowser(result.url, {
+    referer: 'http://m.facebook.com',
+    headless: false,  // 显示浏览器窗口
+    waitTime: 5000    // 等待5秒
+  });
+}
+
+// 运行主函数
+main().catch(console.error);
   
 //   // 示例 2: 批量生成
 //   console.log('\n' + '='.repeat(100));
@@ -269,4 +326,4 @@ class FacebookURLGenerator {
 //   // 导出
 //   if (typeof module !== 'undefined' && module.exports) {
 //     module.exports = FacebookURLGenerator;
-//   }
+//   } 
