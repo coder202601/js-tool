@@ -14,17 +14,37 @@ const MLX_LAUNCHER = 'https://launcher.mlx.yt:45001';
 const USERNAME = 'ccanxiong3@gmail.com'; // TODO: 填写你的邮箱
 const PASSWORD = 'Aa123123..'; // TODO: 填写你的密码（原始密码，不是MD5）
 
-// SOCKS5 代理配置
-const PROXIES = [
-  { host: '43.161.218.237', port: 24000 },
-  { host: '43.161.218.237', port: 24001 },
-  { host: '43.161.218.237', port: 24002 },
-  { host: '43.161.218.237', port: 24003 },
-  { host: '43.161.218.237', port: 24004 }
-];
+// 配置目录
+const CONFIG_DIR = path.join(__dirname, 'config');
+
+// SOCKS5 代理配置文件路径
+const PROXY_CONFIG_FILE = path.join(CONFIG_DIR, 'proxies.json');
 
 // 代理索引持久化文件
-const PROXY_INDEX_FILE = path.join(__dirname, '.proxy_index');
+const PROXY_INDEX_FILE = path.join(CONFIG_DIR, '.proxy_index');
+
+/**
+ * 从文件加载代理配置
+ */
+function loadProxies() {
+  try {
+    if (fs.existsSync(PROXY_CONFIG_FILE)) {
+      const data = fs.readFileSync(PROXY_CONFIG_FILE, 'utf-8');
+      const proxies = JSON.parse(data);
+      if (Array.isArray(proxies) && proxies.length > 0) {
+        console.log(`✅ 成功加载 ${proxies.length} 个代理配置`);
+        return proxies;
+      }
+    }
+    throw new Error('代理配置文件不存在或格式错误');
+  } catch (error) {
+    console.error(`❌ 加载代理配置失败: ${error.message}`);
+    process.exit(1);
+  }
+}
+
+// 加载代理列表
+const PROXIES = loadProxies();
 
 let authToken = null;
 
@@ -149,7 +169,8 @@ async function signIn() {
 async function createQuickProfile() {
   const proxy = getNextProxy();
   console.log(`\n[2/5] 创建快速配置文件`);
-  console.log(`      代理: socks5://${proxy.host}:${proxy.port}`);
+  const proxyAuth = proxy.username ? `${proxy.username}@` : '';
+  console.log(`      代理: socks5://${proxyAuth}${proxy.host}:${proxy.port}`);
 
   const profileData = {
     browser_type: 'mimic',
@@ -160,8 +181,8 @@ async function createQuickProfile() {
         type: 'socks5',
         host: proxy.host,
         port: parseInt(proxy.port),
-        username: '',
-        password: ''
+        username: proxy.username || '',
+        password: proxy.password || ''
       },
       fingerprint: {},
       flags: {

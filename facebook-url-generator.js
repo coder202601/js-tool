@@ -10,7 +10,7 @@ const path = require('path');
 class FacebookURLGenerator {
     constructor(options = {}) {
       this.mode = options.mode || 'file'; // 'file' 或 'random'
-      this.filePath = options.filePath || path.join(__dirname, 'facebook_urls.txt');
+      this.filePath = options.filePath || path.join(__dirname, 'config', 'facebook_urls.txt');
       this.urls = null;
     }
 
