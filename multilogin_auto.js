@@ -156,12 +156,14 @@ async function createQuickProfile() {
     os_type: 'android',
     auto_update_core: true,
     parameters: {
-      fingerprint: {},  // 简化为空对象，让 API 自动生成
-      proxy: {           // proxy 应该在 parameters 下
-        type: 'socks5',  // 注意：类型是 'socks5' 不是 'url'
+      proxy: {
+        type: 'socks5',
         host: proxy.host,
-        port: proxy.port
+        port: parseInt(proxy.port),
+        username: '',
+        password: ''
       },
+      fingerprint: {},
       flags: {
         audio_masking: 'mask',
         fonts_masking: 'mask',

@@ -1,7 +1,0 @@
-# Facebook ID 配置文件
-# 格式：campaignId,adSetId,adId,fbclid
-# 每行一组数据，程序会随机选择其中一组使用
-# 如果只有一组，就使用那一组；如果有多组，就随机选择
-
-120235554089990421,120235554090000421,120235554090010421,IwZXh0bgNhZW0BMABhZGlkAaspnIVbwpUBHoX46X_GQTQzSV5qijTbknwe_0XNptYxTl-B3CjK0LR5tMKkPPQQ4q1FwQCl_aem_TPuy7TzLmPfJZYx-kOuzgg
-
