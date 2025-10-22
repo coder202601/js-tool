@@ -210,6 +210,7 @@ async function openBrowserWithURL(wsEndpoint, url) {
   const browser = await chromium.connectOverCDP(wsEndpoint);
   const contexts = browser.contexts();
 
+
   // 强制创建新页面，不复用可能不稳定的启动页面
   let page;
   if (contexts.length > 0) {
@@ -219,7 +220,11 @@ async function openBrowserWithURL(wsEndpoint, url) {
     page = await context.newPage();
   }
 
-  console.log(`\n[5/5] 正在检查网络环境...`);
+  // 等待页面初始化完成（避免 about:blank 导航冲突）
+  await page.waitForLoadState('load').catch(() => { });
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  console.log(`\n[5/6] 正在检查网络环境...`);
 
   try {
     // 先打开状态检查页面
@@ -287,7 +292,7 @@ async function main() {
     const generator = new FacebookURLGenerator({ mode: 'file' });
     const result = generator.generateURL();
     const url = result.url;
-    
+
     console.log(`\n[3/5] 生成 Facebook URL`);
     console.log(`      数据来源: ${result.metadata.source}`);
     console.log(`      URL: ${url.substring(0, 100)}...`);
