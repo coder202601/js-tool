@@ -266,7 +266,7 @@ async function main() {
 }
 
 // 运行主函数
-main().catch(console.error);
+// main().catch(console.error);
   
 //   // 示例 2: 批量生成
 //   console.log('\n' + '='.repeat(100));
@@ -323,7 +323,7 @@ main().catch(console.error);
 //   console.log('\n快速生成2:', quickGenerate());
 //   console.log('\n快速生成3:', quickGenerate());
   
-//   // 导出
-//   if (typeof module !== 'undefined' && module.exports) {
-//     module.exports = FacebookURLGenerator;
-//   } 
+// 导出
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = FacebookURLGenerator;
+} 

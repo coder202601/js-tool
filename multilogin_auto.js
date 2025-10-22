@@ -1,0 +1,236 @@
+const { chromium } = require('playwright');
+const https = require('https');
+const http = require('http');
+const crypto = require('crypto');
+const FacebookURLGenerator = require('./facebook-url-generator.js');
+
+// Multilogin X API 配置
+const MLX_BASE = 'https://api.multilogin.com';
+const MLX_LAUNCHER = 'https://launcher.mlx.yt:45001';
+
+// 你的 Multilogin X 账户信息
+const USERNAME = 'ccanxiong3@gmail.com'; // TODO: 填写你的邮箱
+const PASSWORD = 'Aa123123..'; // TODO: 填写你的密码（原始密码，不是MD5）
+
+// SOCKS5 代理配置
+const PROXIES = [
+  { host: '43.161.218.237', port: 24000 },
+  { host: '43.161.218.237', port: 24001 },
+  { host: '43.161.218.237', port: 24002 },
+  { host: '43.161.218.237', port: 24003 },
+  { host: '43.161.218.237', port: 24004 }
+];
+
+let currentProxyIndex = 0;
+let authToken = null;
+
+function getNextProxy() {
+  const proxy = PROXIES[currentProxyIndex];
+  currentProxyIndex = (currentProxyIndex + 1) % PROXIES.length;
+  return proxy;
+}
+
+/**
+ * 发送 HTTPS 请求
+ */
+function httpsRequest(url, method, data = null, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url);
+    const options = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || 443,
+      path: urlObj.pathname + urlObj.search,
+      method: method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...headers
+      }
+    };
+
+    console.log(`[DEBUG] 请求: ${method} ${url}`);
+
+    const req = https.request(options, (res) => {
+      let responseData = '';
+
+      res.on('data', (chunk) => {
+        responseData += chunk;
+      });
+
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(responseData);
+          console.log(`[DEBUG] 响应码: ${res.statusCode}`);
+          resolve({ statusCode: res.statusCode, data: parsed });
+        } catch (error) {
+          reject(new Error(`解析响应失败: ${responseData}`));
+        }
+      });
+    });
+
+    req.on('error', (error) => {
+      reject(error);
+    });
+
+    if (data) {
+      req.write(JSON.stringify(data));
+    }
+
+    req.end();
+  });
+}
+
+/**
+ * 登录并获取 Bearer Token
+ */
+async function signIn() {
+  console.log('\n[1/5] 登录到 Multilogin X...');
+  
+  const passwordHash = crypto.createHash('md5').update(PASSWORD).digest('hex');
+  
+  const response = await httpsRequest(
+    `${MLX_BASE}/user/signin`,
+    'POST',
+    {
+      email: USERNAME,
+      password: passwordHash
+    }
+  );
+
+  if (response.statusCode === 200 && response.data.data && response.data.data.token) {
+    authToken = response.data.data.token;
+    console.log(`      Token 获取成功`);
+    return authToken;
+  } else {
+    throw new Error('登录失败: ' + JSON.stringify(response.data));
+  }
+}
+
+/**
+ * 创建快速配置文件（使用 /v2/profile/quick 端点）
+ */
+async function createQuickProfile() {
+  const proxy = getNextProxy();
+  console.log(`\n[2/5] 创建快速配置文件`);
+  console.log(`      代理: socks5://${proxy.host}:${proxy.port}`);
+
+  const profileData = {
+    browser_type: 'mimic',
+    os_type: 'android',
+    auto_update_core: true,
+    parameters: {
+      fingerprint: {},  // 简化为空对象，让 API 自动生成
+      proxy: {           // proxy 应该在 parameters 下
+        type: 'socks5',  // 注意：类型是 'socks5' 不是 'url'
+        host: proxy.host,
+        port: proxy.port
+      },
+      flags: {
+        audio_masking: 'mask',
+        fonts_masking: 'mask',
+        geolocation_masking: 'mask',
+        geolocation_popup: 'prompt',
+        graphics_masking: 'mask',
+        graphics_noise: 'mask',
+        localization_masking: 'mask',
+        media_devices_masking: 'mask',
+        navigator_masking: 'mask',
+        ports_masking: 'mask',
+        proxy_masking: 'custom',  // 使用 proxy 时需要这个
+        screen_masking: 'mask',
+        timezone_masking: 'mask',
+        webrtc_masking: 'mask'
+      }
+    },
+    automation: 'playwright',  // 添加 automation 类型
+    is_headless: false
+  };
+
+  const response = await httpsRequest(
+    `${MLX_LAUNCHER}/api/v2/profile/quick`,
+    'POST',
+    profileData,
+    { 'Authorization': `Bearer ${authToken}` }
+  );
+
+  if (response.statusCode === 200 && response.data.data) {
+    const profileId = response.data.data.id;
+    const wsEndpoint = `http://127.0.0.1:${response.data.data.port}`;
+    console.log(`      配置文件 ID: ${profileId}`);
+    console.log(`      WebSocket 端点: ${wsEndpoint}`);
+    return { profileId, wsEndpoint };
+  } else {
+    throw new Error('创建配置文件失败: ' + JSON.stringify(response.data));
+  }
+}
+
+/**
+ * 使用 Playwright 连接浏览器
+ */
+async function openBrowserWithURL(wsEndpoint, url) {
+  console.log(`\n[4/5] 连接到浏览器`);
+  console.log(`      URL: ${url.substring(0, 100)}...`);
+
+  const browser = await chromium.connectOverCDP(wsEndpoint);
+  const contexts = browser.contexts();
+  
+  let page;
+  if (contexts.length > 0) {
+    const pages = contexts[0].pages();
+    if (pages.length > 0) {
+      page = pages[0];
+    } else {
+      page = await contexts[0].newPage();
+    }
+  } else {
+    const context = await browser.newContext();
+    page = await context.newPage();
+  }
+
+  console.log(`\n[5/5] 正在打开页面...`);
+  await page.goto(url, {
+    referer: 'http://m.facebook.com',
+    waitUntil: 'load',
+    timeout: 60000
+  });
+  console.log(`\n✅ 成功打开页面！`);
+  console.log(`   浏览器窗口将保持打开状态，按 Ctrl+C 停止脚本。`);
+
+  await new Promise(() => {});
+}
+
+/**
+ * 主函数
+ */
+async function main() {
+  console.log('='.repeat(80));
+  console.log('Multilogin X 自动化脚本');
+  console.log('='.repeat(80));
+
+  if (!USERNAME || !PASSWORD) {
+    console.error('\n❌ 错误: 请先填写 USERNAME 和 PASSWORD');
+    process.exit(1);
+  }
+
+  try {
+    // 生成 Facebook URL
+    const generator = new FacebookURLGenerator();
+    const result = generator.generateURL();
+    const url = result.url;
+
+    // 1. 登录
+    await signIn();
+
+    // 2. 创建快速配置文件
+    const { profileId, wsEndpoint } = await createQuickProfile();
+
+    // 4. 打开浏览器并访问 URL
+    await openBrowserWithURL(wsEndpoint, url);
+
+  } catch (error) {
+    console.error(`\n❌ 错误: ${error.message}`);
+    process.exit(1);
+  }
+}
+
+main();
