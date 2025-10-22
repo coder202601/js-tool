@@ -85,9 +85,9 @@ function httpsRequest(url, method, data = null, headers = {}) {
  */
 async function signIn() {
   console.log('\n[1/5] 登录到 Multilogin X...');
-  
+
   const passwordHash = crypto.createHash('md5').update(PASSWORD).digest('hex');
-  
+
   const response = await httpsRequest(
     `${MLX_BASE}/user/signin`,
     'POST',
@@ -169,36 +169,69 @@ async function createQuickProfile() {
  */
 async function openBrowserWithURL(wsEndpoint, url) {
   console.log(`\n[4/5] 连接到浏览器`);
-  console.log(`      URL: ${url.substring(0, 100)}...`);
 
   const browser = await chromium.connectOverCDP(wsEndpoint);
   const contexts = browser.contexts();
-  
+
+  // 强制创建新页面，不复用可能不稳定的启动页面
   let page;
   if (contexts.length > 0) {
-    const pages = contexts[0].pages();
-    if (pages.length > 0) {
-      page = pages[0];
-    } else {
-      page = await contexts[0].newPage();
-    }
+    page = await contexts[0].newPage();
   } else {
     const context = await browser.newContext();
     page = await context.newPage();
   }
 
-  console.log(`\n[5/5] 正在打开页面...`);
-  await page.goto(url, {
-    referer: 'http://m.facebook.com',
-    waitUntil: 'load',
-    timeout: 60000
-  });
-  console.log(`\n✅ 成功打开页面！`);
-  console.log(`   浏览器窗口将保持打开状态，按 Ctrl+C 停止脚本。`);
+  console.log(`\n[5/5] 正在检查网络环境...`);
 
-  await new Promise(() => {});
+  try {
+    // 先打开状态检查页面
+    await page.goto('http://status.mazubaoyou.org/', {
+      waitUntil: 'domcontentloaded',
+      timeout: 90000
+    });
+
+    // 等待关键元素加载完成（而不是固定等待时间）
+    await page.waitForSelector('.passclass', { timeout: 30000 });
+
+    // 再等待一下确保所有内容都加载完成
+    await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {
+      console.log('   网络未完全空闲，但继续检查...');
+    });
+
+    // 检查是否有两个 "passclass pass"
+    const passclassCount = await page.evaluate(() => {
+      const elements = document.querySelectorAll('.passclass.pass');
+      return elements.length;
+    });
+
+    if (passclassCount === 2) {
+      console.log(`✅ 网络环境检查通过（找到 ${passclassCount} 个通过标记）`);
+      console.log(`\n正在打开目标页面...`);
+
+      await page.goto(url, {
+        referer: 'http://m.facebook.com',
+        waitUntil: 'domcontentloaded',
+        timeout: 90000
+      });
+
+      console.log(`\n✅ 成功打开页面！`);
+      console.log(`   浏览器窗口将保持打开状态，按 Ctrl+C 停止脚本。`);
+
+      await new Promise(() => { });
+    } else {
+      console.log(`❌ 网络环境检查失败（只找到 ${passclassCount} 个通过标记，需要 2 个）`);
+      console.log(`   正在关闭浏览器...`);
+      await browser.close();
+      process.exit(1);
+    }
+  } catch (error) {
+    console.log(`❌ 检查过程出错: ${error.message}`);
+    console.log(`   正在关闭浏览器...`);
+    await browser.close();
+    process.exit(1);
+  }
 }
-
 /**
  * 主函数
  */
@@ -213,16 +246,24 @@ async function main() {
   }
 
   try {
-    // 生成 Facebook URL
-    const generator = new FacebookURLGenerator();
+    // 生成 Facebook URL（默认从文件读取模式）
+    const generator = new FacebookURLGenerator({ mode: 'file' });
     const result = generator.generateURL();
     const url = result.url;
+    
+    console.log(`\n[3/5] 生成 Facebook URL`);
+    console.log(`      数据来源: ${result.metadata.source}`);
+    console.log(`      URL: ${url.substring(0, 100)}...`);
 
     // 1. 登录
     await signIn();
 
-    // 2. 创建快速配置文件
+    // 2. 创建并启动快速配置文件（quick profile 创建后自动启动）
     const { profileId, wsEndpoint } = await createQuickProfile();
+
+    // 等待浏览器完全启动
+    // console.log(`\n[3/5] 等待浏览器启动...`);
+    // await new Promise(resolve => setTimeout(resolve, 2000));
 
     // 4. 打开浏览器并访问 URL
     await openBrowserWithURL(wsEndpoint, url);

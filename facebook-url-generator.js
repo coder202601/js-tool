@@ -4,8 +4,76 @@
  */
 
 const { chromium } = require('playwright');
+const fs = require('fs');
+const path = require('path');
 
 class FacebookURLGenerator {
+    constructor(options = {}) {
+      this.mode = options.mode || 'file'; // 'file' 或 'random'
+      this.filePath = options.filePath || path.join(__dirname, 'facebook_id.txt');
+      this.facebookIds = null;
+    }
+
+    /**
+     * 从 facebook_id.txt 文件读取 Facebook ID 数据
+     * 文件格式：每行一组，格式为 campaignId,adSetId,adId,fbclid
+     */
+    loadFacebookIdsFromFile() {
+      if (!fs.existsSync(this.filePath)) {
+        console.warn(`⚠️  警告: 文件 ${this.filePath} 不存在，将使用随机生成模式`);
+        this.mode = 'random';
+        return null;
+      }
+
+      try {
+        const content = fs.readFileSync(this.filePath, 'utf-8');
+        const lines = content.split('\n').filter(line => line.trim() && !line.startsWith('#'));
+        
+        if (lines.length === 0) {
+          console.warn('⚠️  警告: facebook_id.txt 文件为空，将使用随机生成模式');
+          this.mode = 'random';
+          return null;
+        }
+
+        const ids = lines.map(line => {
+          const parts = line.trim().split(',');
+          if (parts.length !== 4) {
+            throw new Error(`格式错误: ${line} (需要4个字段，用逗号分隔)`);
+          }
+          return {
+            campaignId: parts[0].trim(),
+            adSetId: parts[1].trim(),
+            adId: parts[2].trim(),
+            fbclid: parts[3].trim()
+          };
+        });
+
+        console.log(`✅ 成功从文件加载 ${ids.length} 组 Facebook ID`);
+        return ids;
+      } catch (error) {
+        console.error(`❌ 读取文件失败: ${error.message}`);
+        console.warn('   将使用随机生成模式');
+        this.mode = 'random';
+        return null;
+      }
+    }
+
+    /**
+     * 从文件中随机选择一组 ID
+     */
+    getRandomIdFromFile() {
+      if (!this.facebookIds) {
+        this.facebookIds = this.loadFacebookIdsFromFile();
+      }
+
+      if (!this.facebookIds || this.facebookIds.length === 0) {
+        return null;
+      }
+
+      // 如果只有一组，返回那一组；如果有多组，随机选择
+      const index = this.facebookIds.length === 1 ? 0 : Math.floor(Math.random() * this.facebookIds.length);
+      return this.facebookIds[index];
+    }
     /**
      * 生成真正随机的 18 位 Facebook 广告 ID
      */
@@ -57,11 +125,33 @@ class FacebookURLGenerator {
         campaignName = 'default_campaign'
       } = options;
   
-      // 生成各个ID（每次都完全不同）
-      const campaignId = this.generateFacebookId();
-      const adSetId = this.generateFacebookId();
-      const adId = this.generateFacebookId();
-      const fbclid = this.generateFbclid();
+      let campaignId, adSetId, adId, fbclid;
+      let source = 'random'; // 记录来源
+
+      // 根据模式选择生成方式
+      if (this.mode === 'file') {
+        const fileData = this.getRandomIdFromFile();
+        if (fileData) {
+          campaignId = fileData.campaignId;
+          adSetId = fileData.adSetId;
+          adId = fileData.adId;
+          fbclid = fileData.fbclid;
+          source = 'file';
+        } else {
+          // 文件读取失败，回退到随机生成
+          campaignId = this.generateFacebookId();
+          adSetId = this.generateFacebookId();
+          adId = this.generateFacebookId();
+          fbclid = this.generateFbclid();
+          source = 'random (fallback)';
+        }
+      } else {
+        // 随机生成模式
+        campaignId = this.generateFacebookId();
+        adSetId = this.generateFacebookId();
+        adId = this.generateFacebookId();
+        fbclid = this.generateFbclid();
+      }
   
       // ⚠️ 关键修复：手动构建URL以保持参数顺序
       // Facebook的参数顺序：utm_source → utm_medium → utm_campaign → utm_content → fbclid → utm_id → utm_term
@@ -87,6 +177,7 @@ class FacebookURLGenerator {
           adId,
           fbclid,
           campaignName,
+          source, // 新增：记录来源
           generatedAt: new Date().toISOString(),
           // 新增：验证数据
           validation: {
@@ -224,45 +315,57 @@ class FacebookURLGenerator {
 // ============= 使用示例 =============
 
 async function main() {
-  const generator = new FacebookURLGenerator();
-  
   console.log('='.repeat(100));
   console.log('Facebook 广告 URL 生成器 (完善版)');
   console.log('域名: https://vis.mazubaoyou.org');
   console.log('='.repeat(100));
   
-  // 示例 1: 生成单个URL并验证
-  console.log('\n【示例 1】生成并验证单个URL\n');
-  const result = generator.generateURL({
+  // 示例 1: 从文件读取模式（默认）
+  console.log('\n【示例 1】从文件读取 Facebook ID\n');
+  const generatorFile = new FacebookURLGenerator({ mode: 'file' });
+  const resultFile = generatorFile.generateURL({
     campaignName: '春季促销活动'
   });
   
   console.log('完整URL:');
-  console.log(result.url);
+  console.log(resultFile.url);
   
   console.log('\n参数详情:');
-  console.log(`  Campaign ID: ${result.metadata.campaignId} (${result.metadata.validation.campaignIdLength}位)`);
-  console.log(`  AdSet ID:    ${result.metadata.adSetId} (${result.metadata.validation.adSetIdLength}位)`);
-  console.log(`  Ad ID:       ${result.metadata.adId} (${result.metadata.validation.adIdLength}位)`);
-  console.log(`  fbclid:      ${result.metadata.fbclid.substring(0, 50)}... (${result.metadata.validation.fbclidLength}位)`);
-  console.log(`  所有ID唯一:  ${result.metadata.validation.allIdsUnique ? '✅ 是' : '❌ 否'}`);
+  console.log(`  数据来源:    ${resultFile.metadata.source}`);
+  console.log(`  Campaign ID: ${resultFile.metadata.campaignId} (${resultFile.metadata.validation.campaignIdLength}位)`);
+  console.log(`  AdSet ID:    ${resultFile.metadata.adSetId} (${resultFile.metadata.validation.adSetIdLength}位)`);
+  console.log(`  Ad ID:       ${resultFile.metadata.adId} (${resultFile.metadata.validation.adIdLength}位)`);
+  console.log(`  fbclid:      ${resultFile.metadata.fbclid.substring(0, 50)}... (${resultFile.metadata.validation.fbclidLength}位)`);
+  console.log(`  所有ID唯一:  ${resultFile.metadata.validation.allIdsUnique ? '✅ 是' : '❌ 否'}`);
   
   // 验证生成的URL
-  const validation = generator.validateURL(result.url);
+  const validation = generatorFile.validateURL(resultFile.url);
   console.log('\nURL验证结果:');
   console.log(`  有效性: ${validation.valid ? '✅ 通过' : '❌ 失败'}`);
   if (validation.errors.length > 0) {
     console.log(`  错误: ${validation.errors.join(', ')}`);
   }
 
-  // 使用 Playwright 打开浏览器访问生成的URL
+  // 示例 2: 随机生成模式
   console.log('\n' + '='.repeat(100));
-  console.log('\n【使用 Playwright 打开浏览器】\n');
-  await generator.openWithBrowser(result.url, {
-    referer: 'http://m.facebook.com',
-    headless: false,  // 显示浏览器窗口
-    waitTime: 5000    // 等待5秒
+  console.log('\n【示例 2】随机生成 Facebook ID\n');
+  const generatorRandom = new FacebookURLGenerator({ mode: 'random' });
+  const resultRandom = generatorRandom.generateURL({
+    campaignName: '双十一促销'
   });
+  
+  console.log('完整URL:');
+  console.log(resultRandom.url);
+  console.log(`\n数据来源: ${resultRandom.metadata.source}`);
+
+  // 使用 Playwright 打开浏览器访问生成的URL（注释掉，需要时手动启用）
+  // console.log('\n' + '='.repeat(100));
+  // console.log('\n【使用 Playwright 打开浏览器】\n');
+  // await generatorFile.openWithBrowser(resultFile.url, {
+  //   referer: 'http://m.facebook.com',
+  //   headless: false,
+  //   waitTime: 5000
+  // });
 }
 
 // 运行主函数
