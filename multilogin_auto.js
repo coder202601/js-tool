@@ -2,6 +2,8 @@ const { chromium } = require('playwright');
 const https = require('https');
 const http = require('http');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const FacebookURLGenerator = require('./facebook-url-generator.js');
 
 // Multilogin X API 配置
@@ -21,12 +23,47 @@ const PROXIES = [
   { host: '43.161.218.237', port: 24004 }
 ];
 
-let currentProxyIndex = 0;
+// 代理索引持久化文件
+const PROXY_INDEX_FILE = path.join(__dirname, '.proxy_index');
+
 let authToken = null;
 
+/**
+ * 读取上次使用的代理索引
+ */
+function loadProxyIndex() {
+  try {
+    if (fs.existsSync(PROXY_INDEX_FILE)) {
+      const index = parseInt(fs.readFileSync(PROXY_INDEX_FILE, 'utf-8').trim());
+      if (!isNaN(index) && index >= 0 && index < PROXIES.length) {
+        return index;
+      }
+    }
+  } catch (error) {
+    console.warn('读取代理索引失败，使用默认值0');
+  }
+  return 0;
+}
+
+/**
+ * 保存当前代理索引
+ */
+function saveProxyIndex(index) {
+  try {
+    fs.writeFileSync(PROXY_INDEX_FILE, index.toString(), 'utf-8');
+  } catch (error) {
+    console.warn('保存代理索引失败:', error.message);
+  }
+}
+
+/**
+ * 获取下一个代理（轮询方式）
+ */
 function getNextProxy() {
-  const proxy = PROXIES[currentProxyIndex];
-  currentProxyIndex = (currentProxyIndex + 1) % PROXIES.length;
+  const currentIndex = loadProxyIndex();
+  const proxy = PROXIES[currentIndex];
+  const nextIndex = (currentIndex + 1) % PROXIES.length;
+  saveProxyIndex(nextIndex);
   return proxy;
 }
 

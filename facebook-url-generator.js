@@ -121,7 +121,7 @@ class FacebookURLGenerator {
      */
     generateURL(options = {}) {
       const {
-        domain = 'vis.mazubaoyou.org',
+        domain = 'novel.baann.top',
         campaignName = 'default_campaign'
       } = options;
   
@@ -317,7 +317,7 @@ class FacebookURLGenerator {
 async function main() {
   console.log('='.repeat(100));
   console.log('Facebook 广告 URL 生成器 (完善版)');
-  console.log('域名: https://vis.mazubaoyou.org');
+  console.log('域名: https://novel.baann.top');
   console.log('='.repeat(100));
   
   // 示例 1: 从文件读取模式（默认）
