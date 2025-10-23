@@ -4,6 +4,7 @@ const http = require('http');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const FacebookURLGenerator = require('./facebook-url-generator.js');
 
 // Multilogin X API 配置
@@ -20,8 +21,8 @@ const CONFIG_DIR = path.join(__dirname, 'config');
 // SOCKS5 代理配置文件路径
 const PROXY_CONFIG_FILE = path.join(CONFIG_DIR, 'proxies.json');
 
-// 代理索引持久化文件
-const PROXY_INDEX_FILE = path.join(CONFIG_DIR, '.proxy_index');
+// 代理索引持久化文件（保存到临时目录，避免权限问题）
+const PROXY_INDEX_FILE = path.join(os.tmpdir(), 'multilogin_proxy_index.txt');
 
 /**
  * 从文件加载代理配置
@@ -72,7 +73,7 @@ function saveProxyIndex(index) {
   try {
     fs.writeFileSync(PROXY_INDEX_FILE, index.toString(), 'utf-8');
   } catch (error) {
-    console.warn('保存代理索引失败:', error.message);
+    console.error(`⚠️  保存代理索引失败 (${PROXY_INDEX_FILE}): ${error.message}`);
   }
 }
 
