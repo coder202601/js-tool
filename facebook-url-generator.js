@@ -6,11 +6,13 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 class FacebookURLGenerator {
     constructor(options = {}) {
       this.mode = options.mode || 'file'; // 'file' 或 'random'
       this.filePath = options.filePath || path.join(__dirname, 'config', 'facebook_urls.txt');
+      this.indexFile = path.join(os.tmpdir(), 'multilogin_facebook_url_index.txt');
       this.urls = null;
     }
 
@@ -47,9 +49,37 @@ class FacebookURLGenerator {
     }
 
     /**
-     * 从文件中随机选择一个URL
+     * 读取上次使用的URL索引
      */
-    getRandomUrlFromFile() {
+    loadUrlIndex() {
+      try {
+        if (fs.existsSync(this.indexFile)) {
+          const index = parseInt(fs.readFileSync(this.indexFile, 'utf-8').trim());
+          if (!isNaN(index) && index >= 0 && this.urls && index < this.urls.length) {
+            return index;
+          }
+        }
+      } catch (error) {
+        console.warn('读取URL索引失败，使用默认值0');
+      }
+      return 0;
+    }
+
+    /**
+     * 保存当前URL索引
+     */
+    saveUrlIndex(index) {
+      try {
+        fs.writeFileSync(this.indexFile, index.toString(), 'utf-8');
+      } catch (error) {
+        console.error(`⚠️  保存URL索引失败 (${this.indexFile}): ${error.message}`);
+      }
+    }
+
+    /**
+     * 从文件中读取当前URL（不递增索引）
+     */
+    getCurrentUrlFromFile() {
       if (!this.urls) {
         this.urls = this.loadUrlsFromFile();
       }
@@ -58,9 +88,27 @@ class FacebookURLGenerator {
         return null;
       }
 
-      // 如果只有一个，返回那一个；如果有多个，随机选择
-      const index = this.urls.length === 1 ? 0 : Math.floor(Math.random() * this.urls.length);
-      return this.urls[index];
+      // 只读取当前URL，不递增索引
+      const currentIndex = this.loadUrlIndex();
+      const url = this.urls[currentIndex];
+      
+      console.log(`   准备使用 URL ${currentIndex + 1}/${this.urls.length}`);
+      return url;
+    }
+
+    /**
+     * 标记当前URL已成功使用，递增索引
+     */
+    markUrlAsUsed() {
+      if (!this.urls || this.urls.length === 0) {
+        return;
+      }
+
+      const currentIndex = this.loadUrlIndex();
+      const nextIndex = (currentIndex + 1) % this.urls.length;
+      this.saveUrlIndex(nextIndex);
+      
+      console.log(`✅ URL ${currentIndex + 1} 已成功使用，下次将使用 URL ${nextIndex + 1}`);
     }
     /**
      * 生成真正随机的 18 位 Facebook 广告 ID
@@ -118,13 +166,13 @@ class FacebookURLGenerator {
 
       // 根据模式选择生成方式
       if (this.mode === 'file') {
-        const fileUrl = this.getRandomUrlFromFile();
+        const fileUrl = this.getCurrentUrlFromFile();
         if (fileUrl) {
           // 从文件读取的URL，直接返回
           return {
             url: fileUrl,
             metadata: {
-              source: 'file',
+              source: 'file (polling)',
               campaignName,
               generatedAt: new Date().toISOString()
             }

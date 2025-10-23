@@ -229,7 +229,7 @@ async function createQuickProfile() {
 /**
  * 使用 Playwright 连接浏览器
  */
-async function openBrowserWithURL(wsEndpoint, url) {
+async function openBrowserWithURL(wsEndpoint, url, generator) {
   console.log(`\n[4/5] 连接到浏览器`);
 
   const browser = await chromium.connectOverCDP(wsEndpoint);
@@ -274,15 +274,23 @@ async function openBrowserWithURL(wsEndpoint, url) {
 
     if (passclassCount === 2) {
       console.log(`✅ 网络环境检查通过（找到 ${passclassCount} 个通过标记）`);
-      console.log(`\n正在打开目标页面...`);
+      console.log(`\n正在打开目标页面（新窗口）...`);
 
-      await page.goto(url, {
+      // 在新窗口中打开Facebook URL
+      const newPage = await contexts[0].newPage();
+      await newPage.goto(url, {
         referer: 'http://m.facebook.com',
         waitUntil: 'domcontentloaded',
         timeout: 90000
       });
 
       console.log(`\n✅ 成功打开页面！`);
+      
+      // 只有在成功打开后才标记URL已使用
+      if (generator) {
+        generator.markUrlAsUsed();
+      }
+      
       console.log(`   浏览器窗口将保持打开状态，按 Ctrl+C 停止脚本。`);
 
       await new Promise(() => { });
@@ -332,8 +340,8 @@ async function main() {
     // console.log(`\n[3/5] 等待浏览器启动...`);
     // await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // 4. 打开浏览器并访问 URL
-    await openBrowserWithURL(wsEndpoint, url);
+    // 4. 打开浏览器并访问 URL（传入generator用于标记URL已使用）
+    await openBrowserWithURL(wsEndpoint, url, generator);
 
   } catch (error) {
     console.error(`\n❌ 错误: ${error.message}`);
