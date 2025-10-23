@@ -164,7 +164,7 @@ async function signIn() {
 }
 
 /**
- * 创建快速配置文件（使用 /v2/profile/quick 端点）
+ * 创建快速配置文件（使用 /v3/profile/quick 端点）
  */
 async function createQuickProfile() {
   const proxy = getNextProxy();
@@ -175,18 +175,19 @@ async function createQuickProfile() {
   const profileData = {
     browser_type: 'mimic',
     os_type: 'android',
-    auto_update_core: true,
     parameters: {
       proxy: {
         type: 'socks5',
         host: proxy.host,
         port: parseInt(proxy.port),
         username: proxy.username || '',
-        password: proxy.password || ''
+        password: proxy.password || '',
+        save_traffic: false
       },
       fingerprint: {},
       flags: {
         audio_masking: 'mask',
+        canvas_noise: 'natural',
         fonts_masking: 'mask',
         geolocation_masking: 'mask',
         geolocation_popup: 'prompt',
@@ -207,7 +208,7 @@ async function createQuickProfile() {
   };
 
   const response = await httpsRequest(
-    `${MLX_LAUNCHER}/api/v2/profile/quick`,
+    `${MLX_LAUNCHER}/api/v3/profile/quick`,
     'POST',
     profileData,
     { 'Authorization': `Bearer ${authToken}` }
