@@ -1,7 +1,7 @@
 # Facebook URL 配置文件
 # 格式：每行一个完整的 Facebook URL
-# 程序会随机选择其中一个使用
-# 如果只有一个URL，就使用那一个；如果有多个，就随机选择
+# 程序会从上到下逐行使用，每次使用第一行并立即删除
+# 注意：URL使用后会被永久删除，请做好备份
 
 https://vis.mazubaoyou.org?utm_source=facebook&utm_medium=facebook&utm_campaign=1&utm_content=120235554090010421&fbclid=IwZXh0bgNhZW0BMABhZGlkAaspnIVbwpUBHoX46X_GQTQzSV5qijTbknwe_0XNptYxTl-B3CjK0LR5tMKkPPQQ4q1FwQCl_aem_TPuy7TzLmPfJZYx-kOuzgg&utm_id=120235554089990421&utm_term=120235554090000421
 https://vis.mazubaoyou.org?utm_source=facebook&utm_medium=facebook&utm_campaign=2&utm_content=120235554090010421&fbclid=IwZXh0bgNhZW0BMABhZGlkAaspnIVbwpUBHoX46X_GQTQzSV5qijTbknwe_0XNptYxTl-B3CjK0LR5tMKkPPQQ4q1FwQCl_aem_TPuy7TzLmPfJZYx-kOuzgg&utm_id=120235554089990421&utm_term=120235554090000421

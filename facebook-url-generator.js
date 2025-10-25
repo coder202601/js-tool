@@ -17,10 +17,10 @@ class FacebookURLGenerator {
     }
 
     /**
-     * 从 facebook_urls.txt 文件读取完整URL
-     * 文件格式：每行一个完整的URL
+     * 读取文件的第一行URL，并立即删除该行
+     * 这样可以避免重复消费URL
      */
-    loadUrlsFromFile() {
+    consumeFirstUrlFromFile() {
       if (!fs.existsSync(this.filePath)) {
         console.warn(`⚠️  警告: 文件 ${this.filePath} 不存在，将使用随机生成模式`);
         this.mode = 'random';
@@ -28,87 +28,55 @@ class FacebookURLGenerator {
       }
 
       try {
+        // 读取整个文件
         const content = fs.readFileSync(this.filePath, 'utf-8');
-        const lines = content.split('\n').filter(line => line.trim() && !line.startsWith('#'));
+        const allLines = content.split('\n');
         
-        if (lines.length === 0) {
-          console.warn('⚠️  警告: facebook_urls.txt 文件为空，将使用随机生成模式');
+        // 分离注释/空行和有效URL行
+        let firstUrlIndex = -1;
+        let firstUrl = null;
+        
+        // 找到第一个有效的URL（非注释、非空行）
+        for (let i = 0; i < allLines.length; i++) {
+          const line = allLines[i].trim();
+          if (line && !line.startsWith('#')) {
+            firstUrlIndex = i;
+            firstUrl = line;
+            break;
+          }
+        }
+        
+        if (firstUrl === null) {
+          console.warn('⚠️  警告: facebook_urls.txt 文件中没有可用的URL，将使用随机生成模式');
           this.mode = 'random';
           return null;
         }
-
-        const urls = lines.map(line => line.trim());
-        console.log(`✅ 成功从文件加载 ${urls.length} 个 URL`);
-        return urls;
+        
+        console.log(`📖 [消费URL] 读取第一行URL: ${firstUrl.substring(0, 80)}...`);
+        
+        // 删除该行（保留其他所有行，包括注释和空行）
+        allLines.splice(firstUrlIndex, 1);
+        
+        // 重新写入文件
+        const newContent = allLines.join('\n');
+        fs.writeFileSync(this.filePath, newContent, 'utf-8');
+        
+        // 统计剩余URL数量
+        const remainingUrls = allLines.filter(line => {
+          const trimmed = line.trim();
+          return trimmed && !trimmed.startsWith('#');
+        }).length;
+        
+        console.log(`🗑️  [删除成功] 已从文件中移除该URL`);
+        console.log(`📊 [剩余数量] 文件中还剩 ${remainingUrls} 个URL`);
+        
+        return firstUrl;
       } catch (error) {
-        console.error(`❌ 读取文件失败: ${error.message}`);
+        console.error(`❌ 读取或删除URL失败: ${error.message}`);
         console.warn('   将使用随机生成模式');
         this.mode = 'random';
         return null;
       }
-    }
-
-    /**
-     * 读取上次使用的URL索引
-     */
-    loadUrlIndex() {
-      try {
-        if (fs.existsSync(this.indexFile)) {
-          const index = parseInt(fs.readFileSync(this.indexFile, 'utf-8').trim());
-          if (!isNaN(index) && index >= 0 && this.urls && index < this.urls.length) {
-            return index;
-          }
-        }
-      } catch (error) {
-        console.warn('读取URL索引失败，使用默认值0');
-      }
-      return 0;
-    }
-
-    /**
-     * 保存当前URL索引
-     */
-    saveUrlIndex(index) {
-      try {
-        fs.writeFileSync(this.indexFile, index.toString(), 'utf-8');
-      } catch (error) {
-        console.error(`⚠️  保存URL索引失败 (${this.indexFile}): ${error.message}`);
-      }
-    }
-
-    /**
-     * 从文件中读取当前URL（不递增索引）
-     */
-    getCurrentUrlFromFile() {
-      if (!this.urls) {
-        this.urls = this.loadUrlsFromFile();
-      }
-
-      if (!this.urls || this.urls.length === 0) {
-        return null;
-      }
-
-      // 只读取当前URL，不递增索引
-      const currentIndex = this.loadUrlIndex();
-      const url = this.urls[currentIndex];
-      
-      console.log(`   准备使用 URL ${currentIndex + 1}/${this.urls.length}`);
-      return url;
-    }
-
-    /**
-     * 标记当前URL已成功使用，递增索引
-     */
-    markUrlAsUsed() {
-      if (!this.urls || this.urls.length === 0) {
-        return;
-      }
-
-      const currentIndex = this.loadUrlIndex();
-      const nextIndex = (currentIndex + 1) % this.urls.length;
-      this.saveUrlIndex(nextIndex);
-      
-      console.log(`✅ URL ${currentIndex + 1} 已成功使用，下次将使用 URL ${nextIndex + 1}`);
     }
     /**
      * 生成真正随机的 18 位 Facebook 广告 ID
@@ -166,13 +134,13 @@ class FacebookURLGenerator {
 
       // 根据模式选择生成方式
       if (this.mode === 'file') {
-        const fileUrl = this.getCurrentUrlFromFile();
+        const fileUrl = this.consumeFirstUrlFromFile();
         if (fileUrl) {
           // 从文件读取的URL，直接返回
           return {
             url: fileUrl,
             metadata: {
-              source: 'file (polling)',
+              source: 'file (consume-and-delete)',
               campaignName,
               generatedAt: new Date().toISOString()
             }

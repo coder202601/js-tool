@@ -169,7 +169,7 @@ async function signIn() {
  */
 async function createQuickProfile() {
   const proxy = getNextProxy();
-  console.log(`\n[2/5] 创建快速配置文件`);
+  console.log(`\n[3/5] 创建快速配置文件`);
   const proxyAuth = proxy.username ? `${proxy.username}@` : '';
   console.log(`      代理: socks5://${proxyAuth}${proxy.host}:${proxy.port}`);
 
@@ -229,7 +229,7 @@ async function createQuickProfile() {
 /**
  * 使用 Playwright 连接浏览器
  */
-async function openBrowserWithURL(wsEndpoint, url, generator) {
+async function openBrowserWithURL(wsEndpoint, generator) {
   console.log(`\n[4/5] 连接到浏览器`);
 
   const browser = await chromium.connectOverCDP(wsEndpoint);
@@ -249,7 +249,7 @@ async function openBrowserWithURL(wsEndpoint, url, generator) {
   await page.waitForLoadState('load').catch(() => { });
   await new Promise(resolve => setTimeout(resolve, 1000));
 
-  console.log(`\n[5/6] 正在检查网络环境...`);
+  console.log(`\n[5/5] 正在检查网络环境...`);
 
   try {
     // 先打开状态检查页面
@@ -274,6 +274,14 @@ async function openBrowserWithURL(wsEndpoint, url, generator) {
 
     if (passclassCount === 2) {
       console.log(`✅ 网络环境检查通过（找到 ${passclassCount} 个通过标记）`);
+      
+      // 【关键】只有在网络环境检查通过后，才读取并删除URL
+      console.log(`\n正在读取目标URL...`);
+      const result = generator.generateURL();
+      const url = result.url;
+      console.log(`      数据来源: ${result.metadata.source}`);
+      console.log(`      URL: ${url.substring(0, 100)}...`);
+      
       console.log(`\n正在打开目标页面（新窗口）...`);
 
       // 在新窗口中打开Facebook URL
@@ -285,12 +293,6 @@ async function openBrowserWithURL(wsEndpoint, url, generator) {
       });
 
       console.log(`\n✅ 成功打开页面！`);
-      
-      // 只有在成功打开后才标记URL已使用
-      if (generator) {
-        generator.markUrlAsUsed();
-      }
-      
       console.log(`   浏览器窗口将保持打开状态，按 Ctrl+C 停止脚本。`);
 
       await new Promise(() => { });
@@ -321,27 +323,22 @@ async function main() {
   }
 
   try {
-    // 生成 Facebook URL（默认从文件读取模式）
-    const generator = new FacebookURLGenerator({ mode: 'file' });
-    const result = generator.generateURL();
-    const url = result.url;
-
-    console.log(`\n[3/5] 生成 Facebook URL`);
-    console.log(`      数据来源: ${result.metadata.source}`);
-    console.log(`      URL: ${url.substring(0, 100)}...`);
-
     // 1. 登录
     await signIn();
 
-    // 2. 创建并启动快速配置文件（quick profile 创建后自动启动）
+    // 2. 创建 URL 生成器（但不立即读取URL）
+    const generator = new FacebookURLGenerator({ mode: 'file' });
+    console.log(`\n[2/5] URL生成器已准备（将在网络检查通过后读取URL）`);
+
+    // 3. 创建并启动快速配置文件（quick profile 创建后自动启动）
     const { profileId, wsEndpoint } = await createQuickProfile();
 
     // 等待浏览器完全启动
     // console.log(`\n[3/5] 等待浏览器启动...`);
     // await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // 4. 打开浏览器并访问 URL（传入generator用于标记URL已使用）
-    await openBrowserWithURL(wsEndpoint, url, generator);
+    // 4. 打开浏览器并访问 URL（URL将在网络检查通过后才读取和删除）
+    await openBrowserWithURL(wsEndpoint, generator);
 
   } catch (error) {
     console.error(`\n❌ 错误: ${error.message}`);
