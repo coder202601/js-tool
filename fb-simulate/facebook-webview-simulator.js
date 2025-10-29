@@ -11,32 +11,6 @@
 (function() {
     'use strict';
     
-    console.log('[FB WebView Simulator] Initializing Facebook/Instagram in-app browser simulation...');
-    
-    // ==========================================
-    // 1. User-Agent 修改
-    // ==========================================
-    
-    /**
-     * 修改User-Agent以模拟Facebook应用内浏览器
-     * 实际应用中这是在Native层面完成的，这里通过覆盖navigator.userAgent实现模拟
-     */
-    const originalUserAgent = navigator.userAgent;
-    const fbUserAgent = originalUserAgent + ' [FB_IAB/FB4A;FBAV/250.0.0.14.241;]';
-    
-    // 尝试覆盖userAgent (某些浏览器可能不允许)
-    try {
-        Object.defineProperty(navigator, 'userAgent', {
-            get: function() {
-                return fbUserAgent;
-            },
-            configurable: true
-        });
-        console.log('[FB WebView] User-Agent modified:', fbUserAgent);
-    } catch(e) {
-        console.warn('[FB WebView] Could not modify User-Agent (read-only in this browser)');
-    }
-    
     // ==========================================
     // 2. 注入全局Window属性
     // ==========================================
