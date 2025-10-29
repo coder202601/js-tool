@@ -19,21 +19,33 @@
      */
     function getFeaturePolicyAllowListOnPage(features) {
         const map = {};
-        const featurePolicy = document.policy || document.featurePolicy;
+        
+        // 优先使用新的 Permissions Policy API
+        let featurePolicy = document.permissionsPolicy || 
+                            document.policy || 
+                            document.featurePolicy;
         
         if (!featurePolicy) {
-            console.warn('[FB Feature Policy] Feature Policy API not available in this browser');
+            console.warn('[FB Feature Policy] No policy API available');
             return map;
         }
         
         for (const feature of features) {
             try {
-                map[feature] = {
-                    allowed: featurePolicy.allowsFeature(feature),
-                    allowList: featurePolicy.getAllowlistForFeature(feature) || []
-                };
+                // Permissions Policy API 使用不同的方法名
+                if (document.permissionsPolicy) {
+                    map[feature] = {
+                        allowed: featurePolicy.allowsFeature(feature),
+                        allowList: featurePolicy.allowedFeatures() || []
+                    };
+                } else {
+                    // 旧的 Feature Policy API
+                    map[feature] = {
+                        allowed: featurePolicy.allowsFeature(feature),
+                        allowList: featurePolicy.getAllowlistForFeature(feature) || []
+                    };
+                }
             } catch (e) {
-                // 某些策略可能不被支持
                 map[feature] = {
                     allowed: false,
                     allowList: [],
@@ -159,7 +171,8 @@
      * 在页面加载完成后执行检测
      */
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', detectFeaturePolicies);
+        // 立即执行，不需要等待 DOM
+        detectFeaturePolicies();
     } else {
         detectFeaturePolicies();
     }

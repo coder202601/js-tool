@@ -104,32 +104,6 @@
     console.log('[FB WebView] FbQuoteShareJSInterface injected and active');
     
     // ==========================================
-    // 4. Instagram文本选择追踪（iOS风格）
-    // ==========================================
-    
-    /**
-     * 模拟Instagram的messageHandlers.fb_getSelection
-     * 这是iOS WebView使用的接口
-     */
-    if (!window.webkit) {
-        window.webkit = {};
-    }
-    if (!window.webkit.messageHandlers) {
-        window.webkit.messageHandlers = {};
-    }
-    
-    window.webkit.messageHandlers.fb_getSelection = {
-        postMessage: function(message) {
-            console.log('[Instagram WebView] fb_getSelection message:', message);
-            
-            // 触发自定义事件
-            window.dispatchEvent(new CustomEvent('instagram-selection-message', {
-                detail: message
-            }));
-        }
-    };
-    
-    // ==========================================
     // 5. PCM.js 注入检测和模拟
     // ==========================================
     
@@ -378,33 +352,6 @@
     window.FbWebViewConfig.disableInteractionTracking = function() {
         interactionTracking = false;
         console.log('[FB WebView] Interaction tracking disabled');
-    };
-    
-    // ==========================================
-    // 10. 屏幕截图检测（iOS）
-    // ==========================================
-    
-    /**
-     * 在iOS上检测截图（需要Native支持）
-     * 这里仅模拟事件接口
-     */
-    window.FbScreenshotDetector = {
-        onScreenshotDetected: function() {
-            console.log('[FB WebView] Screenshot detected!');
-            
-            const selection = window.getSelection().toString();
-            if (selection) {
-                console.log('[FB WebView] Screenshot with text selection:', selection);
-            }
-            
-            window.dispatchEvent(new CustomEvent('fb-screenshot-detected', {
-                detail: {
-                    url: window.location.href,
-                    timestamp: new Date().toISOString(),
-                    selectedText: selection
-                }
-            }));
-        }
     };
     
     // ==========================================
