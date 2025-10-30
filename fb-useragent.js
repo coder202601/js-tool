@@ -5,69 +5,69 @@ const crypto = require('crypto');
 // ============================================
 const DEVICE_MODELS = [
   // Samsung Galaxy S25 系列 (2025 最新)
-  { model: 'SM-S931U', name: 'Galaxy S25', weight: 0.08, androidVersions: [16, 15] },
-  { model: 'SM-S936U', name: 'Galaxy S25+', weight: 0.06, androidVersions: [16, 15] },
-  { model: 'SM-S938U', name: 'Galaxy S25 Ultra', weight: 0.07, androidVersions: [16, 15] },
-  { model: 'SM-S938B', name: 'Galaxy S25 Ultra', weight: 0.05, androidVersions: [16, 15] },
+  { model: 'SM-S931U', name: 'Galaxy S25', weight: 0.08, androidVersions: [16, 15], cores: 8, cpuArch: 'aarch64' },
+  { model: 'SM-S936U', name: 'Galaxy S25+', weight: 0.06, androidVersions: [16, 15], cores: 8, cpuArch: 'aarch64' },
+  { model: 'SM-S938U', name: 'Galaxy S25 Ultra', weight: 0.07, androidVersions: [16, 15], cores: 8, cpuArch: 'aarch64' },
+  { model: 'SM-S938B', name: 'Galaxy S25 Ultra', weight: 0.05, androidVersions: [16, 15], cores: 8, cpuArch: 'aarch64' },
   
   // Samsung Galaxy S24 系列
-  { model: 'SM-S921U', name: 'Galaxy S24', weight: 0.10, androidVersions: [16, 15, 14] },
-  { model: 'SM-S926U', name: 'Galaxy S24+', weight: 0.08, androidVersions: [16, 15, 14] },
-  { model: 'SM-S928U', name: 'Galaxy S24 Ultra', weight: 0.09, androidVersions: [16, 15, 14] },
-  { model: 'SM-S926B', name: 'Galaxy S24+ Global', weight: 0.07, androidVersions: [16, 15, 14] },
+  { model: 'SM-S921U', name: 'Galaxy S24', weight: 0.10, androidVersions: [16, 15, 14], cores: 8, cpuArch: 'aarch64' },
+  { model: 'SM-S926U', name: 'Galaxy S24+', weight: 0.08, androidVersions: [16, 15, 14], cores: 8, cpuArch: 'aarch64' },
+  { model: 'SM-S928U', name: 'Galaxy S24 Ultra', weight: 0.09, androidVersions: [16, 15, 14], cores: 8, cpuArch: 'aarch64' },
+  { model: 'SM-S926B', name: 'Galaxy S24+ Global', weight: 0.07, androidVersions: [16, 15, 14], cores: 8, cpuArch: 'aarch64' },
   
   // Samsung Galaxy S23 系列
-  { model: 'SM-S911U', name: 'Galaxy S23', weight: 0.08, androidVersions: [16, 15, 14] },
-  { model: 'SM-S916U', name: 'Galaxy S23+', weight: 0.05, androidVersions: [15, 14] },
-  { model: 'SM-S918U', name: 'Galaxy S23 Ultra', weight: 0.06, androidVersions: [15, 14] },
+  { model: 'SM-S911U', name: 'Galaxy S23', weight: 0.08, androidVersions: [16, 15, 14], cores: 8, cpuArch: 'aarch64' },
+  { model: 'SM-S916U', name: 'Galaxy S23+', weight: 0.05, androidVersions: [15, 14], cores: 8, cpuArch: 'aarch64' },
+  { model: 'SM-S918U', name: 'Galaxy S23 Ultra', weight: 0.06, androidVersions: [15, 14], cores: 8, cpuArch: 'aarch64' },
   
   // Samsung Galaxy S21/S22 系列
-  { model: 'SM-S721W', name: 'Galaxy S21 FE', weight: 0.10, androidVersions: [15, 14, 13] },
-  { model: 'SM-G991U', name: 'Galaxy S21 5G', weight: 0.12, androidVersions: [15, 14, 13] },
-  { model: 'SM-G996U', name: 'Galaxy S21+', weight: 0.05, androidVersions: [15, 14] },
+  { model: 'SM-S721W', name: 'Galaxy S21 FE', weight: 0.10, androidVersions: [15, 14, 13], cores: 8, cpuArch: 'aarch64' },
+  { model: 'SM-G991U', name: 'Galaxy S21 5G', weight: 0.12, androidVersions: [15, 14, 13], cores: 8, cpuArch: 'aarch64' },
+  { model: 'SM-G996U', name: 'Galaxy S21+', weight: 0.05, androidVersions: [15, 14], cores: 8, cpuArch: 'aarch64' },
   
   // Samsung Galaxy S20 系列
-  { model: 'SM-G981B', name: 'Galaxy S20', weight: 0.06, androidVersions: [14, 13, 12] },
-  { model: 'SM-G986U', name: 'Galaxy S20+', weight: 0.04, androidVersions: [14, 13] },
+  { model: 'SM-G981B', name: 'Galaxy S20', weight: 0.06, androidVersions: [14, 13, 12], cores: 8, cpuArch: 'aarch64' },
+  { model: 'SM-G986U', name: 'Galaxy S20+', weight: 0.04, androidVersions: [14, 13], cores: 8, cpuArch: 'aarch64' },
   
   // Samsung Galaxy A 系列（中端市场）
-  { model: 'SM-A326U', name: 'Galaxy A32 5G', weight: 0.07, androidVersions: [14, 13, 12] },
-  { model: 'SM-A525F', name: 'Galaxy A52 5G', weight: 0.05, androidVersions: [14, 13] },
-  { model: 'SM-A546U', name: 'Galaxy A54', weight: 0.06, androidVersions: [15, 14] },
-  { model: 'SM-A736U', name: 'Galaxy A73', weight: 0.04, androidVersions: [15, 14] },
-  { model: 'SM-A025A', name: 'Galaxy A02', weight: 0.04, androidVersions: [12, 11] },
+  { model: 'SM-A326U', name: 'Galaxy A32 5G', weight: 0.07, androidVersions: [14, 13, 12], cores: 8, cpuArch: 'aarch64' },
+  { model: 'SM-A525F', name: 'Galaxy A52 5G', weight: 0.05, androidVersions: [14, 13], cores: 8, cpuArch: 'aarch64' },
+  { model: 'SM-A546U', name: 'Galaxy A54', weight: 0.06, androidVersions: [15, 14], cores: 8, cpuArch: 'aarch64' },
+  { model: 'SM-A736U', name: 'Galaxy A73', weight: 0.04, androidVersions: [15, 14], cores: 8, cpuArch: 'aarch64' },
+  { model: 'SM-A025A', name: 'Galaxy A02', weight: 0.04, androidVersions: [12, 11], cores: 4, cpuArch: 'aarch64' },
   
   // Samsung 旧设备
-  { model: 'SM-G960U1', name: 'Galaxy S9', weight: 0.03, androidVersions: [10] },
-  { model: 'SM-G973U', name: 'Galaxy S10', weight: 0.04, androidVersions: [12, 11] },
+  { model: 'SM-G960U1', name: 'Galaxy S9', weight: 0.03, androidVersions: [10], cores: 8, cpuArch: 'aarch64' },
+  { model: 'SM-G973U', name: 'Galaxy S10', weight: 0.04, androidVersions: [12, 11], cores: 8, cpuArch: 'aarch64' },
   
   // Motorola
-  { model: 'moto g stylus 5G - 2024', name: 'Moto G Stylus 5G', weight: 0.07, androidVersions: [15, 14] },
-  { model: 'moto g play - 2024', name: 'Moto G Play', weight: 0.05, androidVersions: [14, 13] },
-  { model: 'moto g power - 2024', name: 'Moto G Power', weight: 0.04, androidVersions: [14] },
-  { model: 'motorola edge 2024', name: 'Motorola Edge', weight: 0.03, androidVersions: [15, 14] },
+  { model: 'moto g stylus 5G - 2024', name: 'Moto G Stylus 5G', weight: 0.07, androidVersions: [15, 14], cores: 8, cpuArch: 'aarch64' },
+  { model: 'moto g play - 2024', name: 'Moto G Play', weight: 0.05, androidVersions: [14, 13], cores: 4, cpuArch: 'aarch64' },
+  { model: 'moto g power - 2024', name: 'Moto G Power', weight: 0.04, androidVersions: [14], cores: 8, cpuArch: 'aarch64' },
+  { model: 'motorola edge 2024', name: 'Motorola Edge', weight: 0.03, androidVersions: [15, 14], cores: 8, cpuArch: 'aarch64' },
   
   // Xiaomi/Redmi
-  { model: '2201117SG', name: 'Redmi Note 11', weight: 0.04, androidVersions: [13, 12] },
-  { model: '2201116SG', name: 'Redmi Note 11 Pro', weight: 0.03, androidVersions: [14, 13] },
-  { model: '2211133G', name: 'Redmi Note 12', weight: 0.04, androidVersions: [14, 13] },
-  { model: '23049RAD8G', name: 'Redmi Note 13 Pro', weight: 0.03, androidVersions: [15, 14] },
+  { model: '2201117SG', name: 'Redmi Note 11', weight: 0.04, androidVersions: [13, 12], cores: 8, cpuArch: 'aarch64' },
+  { model: '2201116SG', name: 'Redmi Note 11 Pro', weight: 0.03, androidVersions: [14, 13], cores: 8, cpuArch: 'aarch64' },
+  { model: '2211133G', name: 'Redmi Note 12', weight: 0.04, androidVersions: [14, 13], cores: 8, cpuArch: 'aarch64' },
+  { model: '23049RAD8G', name: 'Redmi Note 13 Pro', weight: 0.03, androidVersions: [15, 14], cores: 8, cpuArch: 'aarch64' },
   
   // Google Pixel
-  { model: 'Pixel 8', name: 'Google Pixel 8', weight: 0.04, androidVersions: [16, 15, 14] },
-  { model: 'Pixel 8 Pro', name: 'Google Pixel 8 Pro', weight: 0.03, androidVersions: [16, 15, 14] },
-  { model: 'Pixel 9', name: 'Google Pixel 9', weight: 0.05, androidVersions: [16, 15] },
-  { model: 'Pixel 7', name: 'Google Pixel 7', weight: 0.03, androidVersions: [15, 14] },
+  { model: 'Pixel 8', name: 'Google Pixel 8', weight: 0.04, androidVersions: [16, 15, 14], cores: 8, cpuArch: 'aarch64' },
+  { model: 'Pixel 8 Pro', name: 'Google Pixel 8 Pro', weight: 0.03, androidVersions: [16, 15, 14], cores: 8, cpuArch: 'aarch64' },
+  { model: 'Pixel 9', name: 'Google Pixel 9', weight: 0.05, androidVersions: [16, 15], cores: 8, cpuArch: 'aarch64' },
+  { model: 'Pixel 7', name: 'Google Pixel 7', weight: 0.03, androidVersions: [15, 14], cores: 8, cpuArch: 'aarch64' },
   
   // OnePlus
-  { model: 'CPH2581', name: 'OnePlus 12', weight: 0.04, androidVersions: [15, 14] },
-  { model: 'CPH2525', name: 'OnePlus 11', weight: 0.03, androidVersions: [15, 14] },
-  { model: 'CPH2449', name: 'OnePlus Nord N30', weight: 0.03, androidVersions: [14, 13] },
+  { model: 'CPH2581', name: 'OnePlus 12', weight: 0.04, androidVersions: [15, 14], cores: 8, cpuArch: 'aarch64' },
+  { model: 'CPH2525', name: 'OnePlus 11', weight: 0.03, androidVersions: [15, 14], cores: 8, cpuArch: 'aarch64' },
+  { model: 'CPH2449', name: 'OnePlus Nord N30', weight: 0.03, androidVersions: [14, 13], cores: 8, cpuArch: 'aarch64' },
   
   // TCL / Generic Tablets
-  { model: 'T704V', name: 'TCL Tab', weight: 0.02, androidVersions: [15, 14] },
-  { model: 'T614D', name: 'Generic Tablet', weight: 0.02, androidVersions: [14, 13] },
-  { model: 'T616D', name: 'Budget Tablet', weight: 0.02, androidVersions: [14] }
+  { model: 'T704V', name: 'TCL Tab', weight: 0.02, androidVersions: [15, 14], cores: 4, cpuArch: 'aarch64' },
+  { model: 'T614D', name: 'Generic Tablet', weight: 0.02, androidVersions: [14, 13], cores: 4, cpuArch: 'aarch64' },
+  { model: 'T616D', name: 'Budget Tablet', weight: 0.02, androidVersions: [14], cores: 4, cpuArch: 'aarch64' }
 ];
 
 // ============================================
@@ -233,12 +233,17 @@ function generateFacebookUserAgent() {
   // 8. 构建 User-Agent
   const userAgent = `Mozilla/5.0 (Linux; Android ${androidVersion}; ${device.model} Build/${buildId}; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/${chromeVersion} Mobile Safari/537.36 [FB_IAB/FB4A;FBAV/${fbVersion.version};${iabmvPart}]${fbnvPart}`;
   
+  // 9. 生成 platform 字符串（根据 CPU 架构）
+  const platform = `Linux ${device.cpuArch}`;
+  
   return {
     userAgent,
     metadata: {
       device: {
         model: device.model,
-        name: device.name
+        name: device.name,
+        cores: device.cores,
+        cpuArch: device.cpuArch
       },
       android: {
         version: androidVersion,
@@ -253,6 +258,10 @@ function generateFacebookUserAgent() {
       flags: {
         hasIABMV,
         hasFBNV
+      },
+      navigator: {
+        hardwareConcurrency: device.cores,
+        platform: platform
       }
     }
   };

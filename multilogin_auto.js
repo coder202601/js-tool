@@ -179,10 +179,19 @@ async function createQuickProfile() {
 
   // 根据参数决定是否生成自定义UA
   let customUA = null;
+  let navigatorData = {};
   if (useFacebookUA) {
     const uaResult = generateFacebookUserAgent();
     customUA = uaResult.userAgent;
+    navigatorData = {
+      user_agent: customUA,
+      hardware_concurrency: uaResult.metadata.navigator.hardwareConcurrency,
+      platform: uaResult.metadata.navigator.platform
+    };
     console.log(`      自定义UA: ${customUA.substring(0, 80)}...`);
+    console.log(`      设备: ${uaResult.metadata.device.name} (${uaResult.metadata.device.model})`);
+    console.log(`      CPU核心数: ${uaResult.metadata.navigator.hardwareConcurrency}`);
+    console.log(`      Platform: ${uaResult.metadata.navigator.platform}`);
   }
 
   const profileData = {
@@ -198,9 +207,7 @@ async function createQuickProfile() {
         save_traffic: false
       },
       fingerprint: useFacebookUA ? {
-        navigator: {
-          user_agent: customUA
-        }
+        navigator: navigatorData
       } : {},
       flags: {
         audio_masking: 'mask',
@@ -223,6 +230,9 @@ async function createQuickProfile() {
     automation: 'playwright',  // 添加 automation 类型
     is_headless: false
   };
+
+  console.log('\n[DEBUG] 完整的 profileData:');
+  console.log(JSON.stringify(profileData, null, 2));
 
   const response = await httpsRequest(
     `${MLX_LAUNCHER}/api/v3/profile/quick`,
