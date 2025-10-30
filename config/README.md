@@ -1,77 +1,58 @@
-# 配置说明
+# 使用说明
 
-## 1. 运行模式
+## 第一步：配置代理
 
-### 默认模式
-```bash
-node multilogin_auto.js
-```
-- 使用 Multilogin 默认生成的 Android User-Agent
-- 从 `facebook_urls.txt` 读取URL
+编辑 `config/proxies.json`：
 
-### Facebook UA 模式
-```bash
-node multilogin_auto.js --fb-ua
-```
-- 使用 `fb-useragent.js` 生成真实的 Facebook App User-Agent
-- 从 `internal_facebook_urls.txt` 读取URL
-- 适用于需要模拟 Facebook App 内置浏览器的场景
-
-## 2. 配置文件
-
-### proxies.json - 代理配置
 ```json
 [
   {
-    "host": "代理IP地址",
-    "port": "端口号",
-    "username": "用户名（没有就留空）",
-    "password": "密码（没有就留空）"
+    "host": "123.456.78.90",
+    "port": "8080",
+    "username": "your_username",
+    "password": "your_password"
   }
 ]
 ```
 
-### facebook_urls.txt - 默认模式的URL列表
-每行一个URL，支持注释（#开头）
+- 可以配置多个代理，程序会自动轮换
+- 没有用户名密码就填空字符串 `""`
 
-**重要：** 程序会按顺序使用URL，每次读取第一行并立即删除该行。URL使用后会被永久删除。
+## 第二步：准备URL
+
+### 普通Android浏览器
+
+编辑 `config/facebook_urls.txt`，每行一个URL：
 
 ```
-https://www.facebook.com/ads/...
-https://www.facebook.com/ads/...
+https://www.facebook.com/ads/library/?id=123456
+https://www.facebook.com/ads/library/?id=789012
 # 这是注释
 ```
 
-### internal_facebook_urls.txt - Facebook UA 模式的URL列表
-格式同 `facebook_urls.txt`，但仅在使用 `--fb-ua` 参数时读取
+### Facebook App内置浏览器
 
-## 3. 说明
+编辑 `config/internal_facebook_urls.txt`，每行一个URL：
 
-### 执行流程（避免URL浪费）
-程序会按照以下顺序执行：
-1. 登录到 Multilogin X
-2. 准备 URL 生成器（但不读取URL）
-3. 创建浏览器配置文件（分配代理）
-4. 连接浏览器
-5. 检查网络环境（访问 status.mazubaoyou.org）
-6. ✅ **仅在网络检查通过后，才读取并删除URL**
-7. 打开目标页面
+```
+https://www.facebook.com/ads/library/?id=123456
+https://www.facebook.com/ads/library/?id=789012
+# 这是注释
+```
 
-### 关键特性
-- **代理轮询**：代理会自动轮询使用，每次使用不同的代理
-- **延迟消费策略**：URL只在网络检查通过后才被读取和删除
-  - ✅ 网络检查失败时，URL不会被浪费
-  - ✅ 代理配置出错时，URL不会被浪费
-  - ✅ 浏览器启动失败时，URL不会被浪费
-  - ⚠️ 只有在真正要打开目标页面前，才会消费URL
-  - 每个URL只会被使用一次
-  - URL使用后会从文件中永久删除
-  - 如果URL文件为空，会自动切换到随机生成模式
-  - **请提前备份您的URL列表**
-  
-### 日志说明
-- 📖 显示正在消费的URL
-- 🗑️ 显示删除成功
-- 📊 显示剩余URL数量
+⚠️ **URL用完会自动删除，记得备份！**
 
+## 第三步：运行
 
+### 普通Android浏览器
+```bash
+node multilogin_auto.js
+```
+- 读取 `facebook_urls.txt`
+
+### Facebook App内置浏览器
+```bash
+node multilogin_auto.js --fb-ua
+```
+- 读取 `internal_facebook_urls.txt`
+- 模拟Facebook App的JavaScript环境
