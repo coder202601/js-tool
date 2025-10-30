@@ -6,6 +6,10 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const FacebookURLGenerator = require('./facebook-url-generator.js');
+const { generateFacebookUserAgent } = require('./fb-useragent.js');
+
+// 解析命令行参数
+const useFacebookUA = process.argv.includes('--fb-ua');
 
 // Multilogin X API 配置
 const MLX_BASE = 'https://api.multilogin.com';
@@ -173,6 +177,14 @@ async function createQuickProfile() {
   const proxyAuth = proxy.username ? `${proxy.username}@` : '';
   console.log(`      代理: socks5://${proxyAuth}${proxy.host}:${proxy.port}`);
 
+  // 根据参数决定是否生成自定义UA
+  let customUA = null;
+  if (useFacebookUA) {
+    const uaResult = generateFacebookUserAgent();
+    customUA = uaResult.userAgent;
+    console.log(`      自定义UA: ${customUA.substring(0, 80)}...`);
+  }
+
   const profileData = {
     browser_type: 'mimic',
     os_type: 'android',
@@ -185,7 +197,11 @@ async function createQuickProfile() {
         password: proxy.password || '',
         save_traffic: false
       },
-      fingerprint: {},
+      fingerprint: useFacebookUA ? {
+        navigator: {
+          user_agent: customUA
+        }
+      } : {},
       flags: {
         audio_masking: 'mask',
         canvas_noise: 'natural',
@@ -196,7 +212,7 @@ async function createQuickProfile() {
         graphics_noise: 'mask',
         localization_masking: 'mask',
         media_devices_masking: 'mask',
-        navigator_masking: 'mask',
+        navigator_masking: useFacebookUA ? 'custom' : 'mask',
         ports_masking: 'mask',
         proxy_masking: 'custom',  // 使用 proxy 时需要这个
         screen_masking: 'mask',
@@ -314,7 +330,7 @@ async function openBrowserWithURL(wsEndpoint, generator) {
  */
 async function main() {
   console.log('='.repeat(80));
-  console.log('Multilogin X 自动化脚本');
+  console.log(useFacebookUA ? 'Multilogin X 自动化脚本 [Facebook UA 模式]' : 'Multilogin X 自动化脚本');
   console.log('='.repeat(80));
 
   if (!USERNAME || !PASSWORD) {
@@ -326,9 +342,13 @@ async function main() {
     // 1. 登录
     await signIn();
 
-    // 2. 创建 URL 生成器（但不立即读取URL）
-    const generator = new FacebookURLGenerator({ mode: 'file' });
+    // 2. 创建 URL 生成器（根据模式选择不同的URL文件）
+    const urlFile = useFacebookUA 
+      ? path.join(CONFIG_DIR, 'internal_facebook_urls.txt')
+      : path.join(CONFIG_DIR, 'facebook_urls.txt');
+    const generator = new FacebookURLGenerator({ mode: 'file', filePath: urlFile });
     console.log(`\n[2/5] URL生成器已准备（将在网络检查通过后读取URL）`);
+    console.log(`      URL文件: ${path.basename(urlFile)}`);
 
     // 3. 创建并启动快速配置文件（quick profile 创建后自动启动）
     const { profileId, wsEndpoint } = await createQuickProfile();

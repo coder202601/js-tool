@@ -1,20 +1,37 @@
 # 配置说明
 
-## 1. 配置文件
+## 1. 运行模式
+
+### 默认模式
+```bash
+node multilogin_auto.js
+```
+- 使用 Multilogin 默认生成的 Android User-Agent
+- 从 `facebook_urls.txt` 读取URL
+
+### Facebook UA 模式
+```bash
+node multilogin_auto.js --fb-ua
+```
+- 使用 `fb-useragent.js` 生成真实的 Facebook App User-Agent
+- 从 `internal_facebook_urls.txt` 读取URL
+- 适用于需要模拟 Facebook App 内置浏览器的场景
+
+## 2. 配置文件
 
 ### proxies.json - 代理配置
 ```json
 [
   {
     "host": "代理IP地址",
-    "port": 端口号,
+    "port": "端口号",
     "username": "用户名（没有就留空）",
     "password": "密码（没有就留空）"
   }
 ]
 ```
 
-### facebook_urls.txt - Facebook URL列表
+### facebook_urls.txt - 默认模式的URL列表
 每行一个URL，支持注释（#开头）
 
 **重要：** 程序会按顺序使用URL，每次读取第一行并立即删除该行。URL使用后会被永久删除。
@@ -25,11 +42,8 @@ https://www.facebook.com/ads/...
 # 这是注释
 ```
 
-## 2. 执行命令
-
-```bash
-node multilogin_auto.js
-```
+### internal_facebook_urls.txt - Facebook UA 模式的URL列表
+格式同 `facebook_urls.txt`，但仅在使用 `--fb-ua` 参数时读取
 
 ## 3. 说明
 
