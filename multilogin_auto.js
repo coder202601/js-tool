@@ -2,6 +2,7 @@ const { chromium } = require('playwright');
 const https = require('https');
 const http = require('http');
 const crypto = require('crypto');
+const readline = require('readline');
 const { generateFacebookUserAgent } = require('./fb-useragent.js');
 
 // 解析命令行参数
@@ -15,10 +16,24 @@ const MLX_LAUNCHER = 'https://launcher.mlx.yt:45001';
 const USERNAME = 'ccanxiong3@gmail.com';
 const PASSWORD = 'Aa123123..';
 
-// 任务 API 配置
-const TASK_API_URL = 'https://huiyan.mazubaoyou.org/get_task?taskid=HmeXigQgKPpoFMBWmDrvSh7a9VBjMNG2mSUQ0E9OxBE';
-
 let authToken = null;
+
+/**
+ * 读取用户输入
+ */
+function getUserInput(prompt) {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  return new Promise((resolve) => {
+    rl.question(prompt, (answer) => {
+      rl.close();
+      resolve(answer.trim());
+    });
+  });
+}
 
 /**
  * 发送 HTTPS 请求
@@ -73,10 +88,10 @@ function httpsRequest(url, method, data = null, headers = {}) {
 /**
  * 获取任务配置（代理和跳转URL）
  */
-async function fetchTask() {
+async function fetchTask(taskApiUrl) {
   console.log('\n[1/5] 获取任务配置...');
   
-  const response = await httpsRequest(TASK_API_URL, 'GET');
+  const response = await httpsRequest(taskApiUrl, 'GET');
   
   if (response.statusCode !== 200 || !response.data.success) {
     throw new Error('获取任务失败: ' + JSON.stringify(response.data));
@@ -289,8 +304,16 @@ async function main() {
   }
 
   try {
+    // 0. 获取用户输入的任务链接
+    console.log('\n请输入任务链接：');
+    const taskApiUrl = await getUserInput('> ');
+    
+    if (!taskApiUrl) {
+      throw new Error('任务链接不能为空');
+    }
+
     // 1. 获取任务配置
-    const { proxy, redirectUrl } = await fetchTask();
+    const { proxy, redirectUrl } = await fetchTask(taskApiUrl);
 
     // 2. 登录
     await signIn();
