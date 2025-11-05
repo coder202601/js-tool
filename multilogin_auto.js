@@ -2,95 +2,23 @@ const { chromium } = require('playwright');
 const https = require('https');
 const http = require('http');
 const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const FacebookURLGenerator = require('./facebook-url-generator.js');
 const { generateFacebookUserAgent } = require('./fb-useragent.js');
 
 // 解析命令行参数
-const useFacebookUA = process.argv.includes('--fb-ua');
+const useFacebookUA = !process.argv.includes('--no-fb-ua');
 
 // Multilogin X API 配置
 const MLX_BASE = 'https://api.multilogin.com';
 const MLX_LAUNCHER = 'https://launcher.mlx.yt:45001';
 
 // 你的 Multilogin X 账户信息
-const USERNAME = 'ccanxiong3@gmail.com'; // TODO: 填写你的邮箱
-const PASSWORD = 'Aa123123..'; // TODO: 填写你的密码（原始密码，不是MD5）
+const USERNAME = 'ccanxiong3@gmail.com';
+const PASSWORD = 'Aa123123..';
 
-// 配置目录
-const CONFIG_DIR = path.join(__dirname, 'config');
-
-// SOCKS5 代理配置文件路径
-const PROXY_CONFIG_FILE = path.join(CONFIG_DIR, 'proxies.json');
-
-// 代理索引持久化文件（保存到临时目录，避免权限问题）
-const PROXY_INDEX_FILE = path.join(os.tmpdir(), 'multilogin_proxy_index.txt');
-
-/**
- * 从文件加载代理配置
- */
-function loadProxies() {
-  try {
-    if (fs.existsSync(PROXY_CONFIG_FILE)) {
-      const data = fs.readFileSync(PROXY_CONFIG_FILE, 'utf-8');
-      const proxies = JSON.parse(data);
-      if (Array.isArray(proxies) && proxies.length > 0) {
-        console.log(`✅ 成功加载 ${proxies.length} 个代理配置`);
-        return proxies;
-      }
-    }
-    throw new Error('代理配置文件不存在或格式错误');
-  } catch (error) {
-    console.error(`❌ 加载代理配置失败: ${error.message}`);
-    process.exit(1);
-  }
-}
-
-// 加载代理列表
-const PROXIES = loadProxies();
+// 任务 API 配置
+const TASK_API_URL = 'https://huiyan.mazubaoyou.org/get_task?taskid=HmeXigQgKPpoFMBWmDrvSh7a9VBjMNG2mSUQ0E9OxBE';
 
 let authToken = null;
-
-/**
- * 读取上次使用的代理索引
- */
-function loadProxyIndex() {
-  try {
-    if (fs.existsSync(PROXY_INDEX_FILE)) {
-      const index = parseInt(fs.readFileSync(PROXY_INDEX_FILE, 'utf-8').trim());
-      if (!isNaN(index) && index >= 0 && index < PROXIES.length) {
-        return index;
-      }
-    }
-  } catch (error) {
-    console.warn('读取代理索引失败，使用默认值0');
-  }
-  return 0;
-}
-
-/**
- * 保存当前代理索引
- */
-function saveProxyIndex(index) {
-  try {
-    fs.writeFileSync(PROXY_INDEX_FILE, index.toString(), 'utf-8');
-  } catch (error) {
-    console.error(`⚠️  保存代理索引失败 (${PROXY_INDEX_FILE}): ${error.message}`);
-  }
-}
-
-/**
- * 获取下一个代理（轮询方式）
- */
-function getNextProxy() {
-  const currentIndex = loadProxyIndex();
-  const proxy = PROXIES[currentIndex];
-  const nextIndex = (currentIndex + 1) % PROXIES.length;
-  saveProxyIndex(nextIndex);
-  return proxy;
-}
 
 /**
  * 发送 HTTPS 请求
@@ -143,10 +71,31 @@ function httpsRequest(url, method, data = null, headers = {}) {
 }
 
 /**
+ * 获取任务配置（代理和跳转URL）
+ */
+async function fetchTask() {
+  console.log('\n[1/5] 获取任务配置...');
+  
+  const response = await httpsRequest(TASK_API_URL, 'GET');
+  
+  if (response.statusCode !== 200 || !response.data.success) {
+    throw new Error('获取任务失败: ' + JSON.stringify(response.data));
+  }
+  
+  const { proxy, redirect_url } = response.data;
+  
+  console.log(`      代理服务器: ${proxy.proxy_host}:${proxy.port}`);
+  console.log(`      代理用户: ${proxy.customer}`);
+  console.log(`      跳转URL: ${redirect_url.substring(0, 80)}...`);
+  
+  return { proxy, redirectUrl: redirect_url };
+}
+
+/**
  * 登录并获取 Bearer Token
  */
 async function signIn() {
-  console.log('\n[1/5] 登录到 Multilogin X...');
+  console.log('\n[2/5] 登录到 Multilogin X...');
 
   const passwordHash = crypto.createHash('md5').update(PASSWORD).digest('hex');
 
@@ -171,11 +120,9 @@ async function signIn() {
 /**
  * 创建快速配置文件（使用 /v3/profile/quick 端点）
  */
-async function createQuickProfile() {
-  const proxy = getNextProxy();
+async function createQuickProfile(proxy) {
   console.log(`\n[3/5] 创建快速配置文件`);
-  const proxyAuth = proxy.username ? `${proxy.username}@` : '';
-  console.log(`      代理: socks5://${proxyAuth}${proxy.host}:${proxy.port}`);
+  console.log(`      代理: socks5://${proxy.customer}@${proxy.proxy_host}:${proxy.port}`);
 
   // 根据参数决定是否生成自定义UA
   let customUA = null;
@@ -200,10 +147,10 @@ async function createQuickProfile() {
     parameters: {
       proxy: {
         type: 'socks5',
-        host: proxy.host,
+        host: proxy.proxy_host,
         port: parseInt(proxy.port),
-        username: proxy.username || '',
-        password: proxy.password || '',
+        username: proxy.customer,
+        password: proxy.password,
         save_traffic: false
       },
       fingerprint: useFacebookUA ? {
@@ -221,13 +168,13 @@ async function createQuickProfile() {
         media_devices_masking: 'mask',
         navigator_masking: useFacebookUA ? 'custom' : 'mask',
         ports_masking: 'mask',
-        proxy_masking: 'custom',  // 使用 proxy 时需要这个
+        proxy_masking: 'custom',
         screen_masking: 'mask',
         timezone_masking: 'mask',
         webrtc_masking: 'mask'
       }
     },
-    automation: 'playwright',  // 添加 automation 类型
+    automation: 'playwright',
     is_headless: false
   };
 
@@ -255,14 +202,13 @@ async function createQuickProfile() {
 /**
  * 使用 Playwright 连接浏览器
  */
-async function openBrowserWithURL(wsEndpoint, generator) {
+async function openBrowserWithURL(wsEndpoint, redirectUrl) {
   console.log(`\n[4/5] 连接到浏览器`);
 
   const browser = await chromium.connectOverCDP(wsEndpoint);
   const contexts = browser.contexts();
 
-
-  // 强制创建新页面，不复用可能不稳定的启动页面
+  // 强制创建新页面
   let page;
   if (contexts.length > 0) {
     page = await contexts[0].newPage();
@@ -271,7 +217,7 @@ async function openBrowserWithURL(wsEndpoint, generator) {
     page = await context.newPage();
   }
 
-  // 等待页面初始化完成（避免 about:blank 导航冲突）
+  // 等待页面初始化完成
   await page.waitForLoadState('load').catch(() => { });
   await new Promise(resolve => setTimeout(resolve, 1000));
 
@@ -284,10 +230,10 @@ async function openBrowserWithURL(wsEndpoint, generator) {
       timeout: 90000
     });
 
-    // 等待关键元素加载完成（而不是固定等待时间）
+    // 等待关键元素加载完成
     await page.waitForSelector('.passclass', { timeout: 30000 });
 
-    // 再等待一下确保所有内容都加载完成
+    // 等待网络空闲
     await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {
       console.log('   网络未完全空闲，但继续检查...');
     });
@@ -301,18 +247,12 @@ async function openBrowserWithURL(wsEndpoint, generator) {
     if (passclassCount === 2) {
       console.log(`✅ 网络环境检查通过（找到 ${passclassCount} 个通过标记）`);
       
-      // 【关键】只有在网络环境检查通过后，才读取并删除URL
-      console.log(`\n正在读取目标URL...`);
-      const result = generator.generateURL();
-      const url = result.url;
-      console.log(`      数据来源: ${result.metadata.source}`);
-      console.log(`      URL: ${url.substring(0, 100)}...`);
-      
       console.log(`\n正在打开目标页面（新窗口）...`);
+      console.log(`      URL: ${redirectUrl.substring(0, 100)}...`);
 
-      // 在新窗口中打开Facebook URL
+      // 在新窗口中打开目标URL
       const newPage = await contexts[0].newPage();
-      await newPage.goto(url, {
+      await newPage.goto(redirectUrl, {
         referer: 'http://m.facebook.com',
         waitUntil: 'domcontentloaded',
         timeout: 90000
@@ -349,26 +289,17 @@ async function main() {
   }
 
   try {
-    // 1. 登录
+    // 1. 获取任务配置
+    const { proxy, redirectUrl } = await fetchTask();
+
+    // 2. 登录
     await signIn();
 
-    // 2. 创建 URL 生成器（根据模式选择不同的URL文件）
-    const urlFile = useFacebookUA 
-      ? path.join(CONFIG_DIR, 'internal_facebook_urls.txt')
-      : path.join(CONFIG_DIR, 'facebook_urls.txt');
-    const generator = new FacebookURLGenerator({ mode: 'file', filePath: urlFile });
-    console.log(`\n[2/5] URL生成器已准备（将在网络检查通过后读取URL）`);
-    console.log(`      URL文件: ${path.basename(urlFile)}`);
+    // 3. 创建并启动快速配置文件
+    const { profileId, wsEndpoint } = await createQuickProfile(proxy);
 
-    // 3. 创建并启动快速配置文件（quick profile 创建后自动启动）
-    const { profileId, wsEndpoint } = await createQuickProfile();
-
-    // 等待浏览器完全启动
-    // console.log(`\n[3/5] 等待浏览器启动...`);
-    // await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // 4. 打开浏览器并访问 URL（URL将在网络检查通过后才读取和删除）
-    await openBrowserWithURL(wsEndpoint, generator);
+    // 4. 打开浏览器并访问 URL
+    await openBrowserWithURL(wsEndpoint, redirectUrl);
 
   } catch (error) {
     console.error(`\n❌ 错误: ${error.message}`);
