@@ -253,14 +253,14 @@ async function openBrowserWithURL(wsEndpoint, redirectUrl) {
       console.log('   网络未完全空闲，但继续检查...');
     });
 
-    // 检查是否有两个 "passclass pass"
-    const passclassCount = await page.evaluate(() => {
-      const elements = document.querySelectorAll('.passclass.pass');
-      return elements.length;
+    // 检查页面内容是否包含 "failerror" 字符串
+    const hasFailError = await page.evaluate(() => {
+      const bodyText = document.body.innerText.toLowerCase();
+      return bodyText.includes('failerror');
     });
 
-    if (passclassCount === 2) {
-      console.log(`✅ 网络环境检查通过（找到 ${passclassCount} 个通过标记）`);
+    if (!hasFailError) {
+      console.log(`✅ 网络环境检查通过（未检测到 failerror）`);
       
       console.log(`\n正在打开目标页面（新窗口）...`);
       console.log(`      URL: ${redirectUrl.substring(0, 100)}...`);
@@ -278,7 +278,7 @@ async function openBrowserWithURL(wsEndpoint, redirectUrl) {
 
       await new Promise(() => { });
     } else {
-      console.log(`❌ 网络环境检查失败（只找到 ${passclassCount} 个通过标记，需要 2 个）`);
+      console.log(`❌ 网络环境检查失败（检测到 failerror）`);
       console.log(`   正在关闭浏览器...`);
       await browser.close();
       process.exit(1);
