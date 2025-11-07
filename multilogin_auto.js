@@ -253,10 +253,10 @@ async function openBrowserWithURL(wsEndpoint, redirectUrl) {
       console.log('   网络未完全空闲，但继续检查...');
     });
 
-    // 检查页面内容是否包含 "failerror" 字符串
+    // 检查页面源代码是否包含 "failerror" 字符串
     const hasFailError = await page.evaluate(() => {
-      const bodyText = document.body.innerText.toLowerCase();
-      return bodyText.includes('failerror');
+      const htmlSource = document.documentElement.outerHTML.toLowerCase();
+      return htmlSource.includes('failerror');
     });
 
     if (!hasFailError) {
